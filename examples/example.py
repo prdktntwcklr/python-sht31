@@ -1,5 +1,10 @@
+#!/usr/bin/env python
+
+# basic script to test SHT31 functionality on the Raspberry Pi
+
 import smbus
 import time
+
 import sht31
 
 address = 0x44
