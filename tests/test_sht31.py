@@ -41,12 +41,12 @@ def test_humidity_conversion(device):
     assert device._calc_relative_humidity(0) == 0.0
     assert device._calc_relative_humidity(65535) == 100.0
 
-def test_celcius_conversion(device):
+def test_celsius_conversion(device):
     """  
-    Tests the conversion to Celcius temperature
+    Tests the conversion to Celsius temperature
     """ 
-    assert device._calc_celcius_temperature(0) == -45.0
-    assert device._calc_celcius_temperature(65535) == 130.0
+    assert device._calc_celsius_temperature(0) == -45.0
+    assert device._calc_celsius_temperature(65535) == 130.0
 
 def test_read_data(device):
     """  

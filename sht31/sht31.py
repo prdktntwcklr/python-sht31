@@ -25,7 +25,7 @@ class SHT31():
    def _calc_relative_humidity(self, humiVal: int) -> float:
       return (100 * humiVal / (65536.0 - 1.0))
 
-   def _calc_celcius_temperature(self, tempVal: int) -> float:
+   def _calc_celsius_temperature(self, tempVal: int) -> float:
       return (-45 + (175 * tempVal / (65536.0 - 1.0)))
 
    def setup(self) -> None:
@@ -35,7 +35,7 @@ class SHT31():
    def get_temp_and_humidity(self) -> tuple[int, int]:
       tempRaw, humiRaw = self._read_data()
 
-      tempCelsius = self._calc_celcius_temperature(tempRaw)
+      tempCelsius = self._calc_celsius_temperature(tempRaw)
       humiRelative = self._calc_relative_humidity(humiRaw)
 
       return tempCelsius, humiRelative
