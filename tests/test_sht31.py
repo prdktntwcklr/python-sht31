@@ -2,12 +2,17 @@ import sht31
 
 import pytest
 
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 
 # use mocked smbus for testing
 smbus = Mock()
 
-@pytest.fixture(scope='session')
+@pytest.fixture(autouse = True)
+def patch_sleep():
+    with patch("time.sleep"):
+        yield
+
+@pytest.fixture(scope = 'session')
 def device():
     device = sht31.SHT31(bus = smbus)
     yield device
@@ -32,7 +37,7 @@ def test_wrong_address_error():
     """  
     with pytest.raises(RuntimeError) as excinfo:
         BadAddrDevice = sht31.SHT31(address = 0xAB, bus = smbus)
-    assert str(excinfo.value) == "Invalid I2C address! Should be one of ['0x44', '0x45']!"
+    assert str(excinfo.value) == "Invalid I2C address: 0xab!"
 
 def test_humidity_conversion(device):
     """  
@@ -57,3 +62,10 @@ def test_read_data(device):
 
     assert temp == 0x1234
     assert humi == 0x789A
+
+def test_setup_func(device):
+    """  
+    Tests the setup function
+    """
+    device.setup()
+    smbus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
