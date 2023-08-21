@@ -35,7 +35,7 @@ def test_wrong_address_error():
     """  
     Tests that a RuntimeError is raised when an invalid I2C address is provided
     """  
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         BadAddrDevice = sht31.SHT31(address = 0xAB, bus = smbus)
     assert str(excinfo.value) == "Invalid I2C address: 0xab!"
 
@@ -67,5 +67,5 @@ def test_setup_func(device):
     """  
     Tests the setup function
     """
-    device.setup()
+    device._setup()
     smbus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
