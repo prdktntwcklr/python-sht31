@@ -3,7 +3,6 @@
 # basic script to test SHT31 functionality on the Raspberry Pi
 
 import smbus
-import time
 
 import sht31
 

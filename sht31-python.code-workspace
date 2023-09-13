@@ -4,7 +4,11 @@
 			"path": "."
 		}
 	],
-	"settings": {},
+	"settings": {
+		"python.analysis.diagnosticSeverityOverrides": {
+			"reportMissingImports": "none"
+		}
+	},
 	"extensions": {
 		"recommendations": [
 			"ms-python.python",
