@@ -4,7 +4,7 @@
 
 import smbus
 
-import sht31
+from sht31 import sht31
 
 address = 0x44
 bus = smbus.SMBus(1)
