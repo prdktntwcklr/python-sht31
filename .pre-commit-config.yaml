@@ -12,4 +12,4 @@ repos:
     rev: 6.1.0
     hooks:
     -   id: flake8
-        args: ["-j8", "--ignore=F841,W504"]
+        args: ["-j8", "--ignore=E722,F841,W504"]

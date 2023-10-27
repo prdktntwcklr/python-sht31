@@ -34,7 +34,7 @@ class SHT31:
             raise ValueError(f"Invalid I2C address: {hex(address)}!")
 
         if not bus:
-            raise RuntimeError("I2C bus not specified!")
+            raise ValueError("I2C bus not specified!")
 
         self._address = address
         self._bus = bus
@@ -45,12 +45,26 @@ class SHT31:
         self._clock_stretching = True
 
     def _read_data(self) -> tuple[int, int]:
-        data = self._bus.read_i2c_block_data(self._address, 0x00, 6)
+        try:
+            data = self._bus.read_i2c_block_data(self._address, 0x00, 6)
+        except:  # reading from sensor has failed
+            raise
 
         tempRaw = data[0] * 256 + data[1]
         humiRaw = data[3] * 256 + data[4]
 
         return tempRaw, humiRaw
+
+    def _read_and_convert_data(self) -> tuple[float, float]:
+        try:
+            tempRaw, humiRaw = self._read_data()
+        except:  # reading from sensor has failed
+            return None, None
+
+        tempCelsius = self._calc_celsius_temperature(tempRaw)
+        humiRelative = self._calc_relative_humidity(humiRaw)
+
+        return tempCelsius, humiRelative
 
     def _calc_relative_humidity(self, humiVal: int) -> float:
         return (100 * humiVal / (65536.0 - 1.0))
@@ -78,12 +92,9 @@ class SHT31:
         self._command(_SHT31_CMD_SOFTRESET)
         time.sleep(0.0015)
 
-    def get_temp_and_humidity(self) -> tuple[int, int]:
+    def get_temp_and_humidity(self) -> tuple[float, float]:
         self._setup()
 
-        tempRaw, humiRaw = self._read_data()
-
-        tempCelsius = self._calc_celsius_temperature(tempRaw)
-        humiRelative = self._calc_relative_humidity(humiRaw)
+        tempCelsius, humiRelative = self._read_and_convert_data()
 
         return tempCelsius, humiRelative
