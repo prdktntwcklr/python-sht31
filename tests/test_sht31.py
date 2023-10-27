@@ -31,7 +31,7 @@ def test_no_bus_error():
     """
     Tests that a RuntimeError is raised when the no I2C is specified
     """
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         NoBusDevice = sht31.SHT31()
     assert str(excinfo.value) == "I2C bus not specified!"
 
@@ -71,6 +71,28 @@ def test_read_data(device):
 
     assert temp == 0x1234
     assert humi == 0x789A
+
+
+def test_read_and_convert_data_fail(device):
+    """
+    Tests the read and convert data function when read_i2c_block_data fails
+    """
+    smbus.read_i2c_block_data = Mock(side_effect=Exception)
+    temp, humi = device._read_and_convert_data()
+
+    assert temp is None
+    assert humi is None
+
+
+def test_read_data_fail(device):
+    """
+    Tests the read data function with read_i2c_block_data failing
+    """
+    smbus.read_i2c_block_data = Mock(side_effect=Exception)
+    temp, humi = device._read_and_convert_data()
+
+    assert temp is None
+    assert humi is None
 
 
 def test_setup_func(device):
