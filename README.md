@@ -21,7 +21,7 @@ You can download the most recent version of the library from the
 install it using `pip`:
 
 ```bash
-pip install python-sht31-0.1.0.tar.gz
+pip install python-sht31-0.1.1.tar.gz
 ```
 
 ## Example output
