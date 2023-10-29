@@ -23,7 +23,3 @@ install it using `pip`:
 ```bash
 pip install python-sht31-0.1.1.tar.gz
 ```
-
-## Example output
-
-![terminal_output](docs/images/terminal_output.png)

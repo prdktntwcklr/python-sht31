@@ -1,22 +1,29 @@
 #!/usr/bin/env python
 
-# basic script to test SHT31 functionality on the Raspberry Pi
+# basic script that reads SHT31 data once per second
 
 import smbus
 import sys
+import time
 
 from sht31 import sht31
 
-address = 0x44
+address = 0x44  # default address
 bus = smbus.SMBus(1)
 
 try:
-    device = sht31.SHT31(address=address, bus=bus)
+    sht31 = sht31.SHT31(address=address, bus=bus)
 except Exception as e:
     print("Initializing SHT31 failed:", e)
     sys.exit(1)
 
-tempCel, humiRel = device.get_temp_and_humidity()
+while True:
+    temperature, humidity = sht31.get_temp_and_humidity()
 
-print("Temperature in Celsius is: {:.2f}".format(tempCel))
-print("Relative Humidity is: {:.2f}".format(humiRel))
+    if temperature is not None and humidity is not None:
+        print("Temperature: {:.2f}°C".format(temperature))
+        print("Relative humidity: {:.2f}%".format(humidity))
+    else:
+        print("Failed to read SHT31! Check if sensor is connected.")
+
+    time.sleep(1)
