@@ -1,12 +1,20 @@
 #!/usr/bin/env python
 
-# basic script that reads SHT31 data once per second
+'''
+basic script that reads SHT31 data once per second
+'''
 
-import smbus
 import sys
-import time
+sys.path.append(sys.path[0] + '/..')
 
-from sht31 import sht31
+import time  # noqa: E402
+
+try:
+    import smbus
+except ImportError:
+    import simulation.smbus as smbus
+
+from sht31 import sht31  # noqa: E402
 
 address = 0x44  # default address
 bus = smbus.SMBus(1)

@@ -1,0 +1,6 @@
+class SHT31Exception(Exception):
+    ...
+
+
+class SHT31ReadError(SHT31Exception):
+    ...
