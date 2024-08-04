@@ -1,6 +1,8 @@
 import struct
 import time
 
+from sht31.exceptions import SHT31ReadError
+
 _SHT31_ADDRESS_DEF = 0x44
 _SHT31_ADDRESS_ALT = 0x45
 _SHT31_ADDRESSES = [_SHT31_ADDRESS_DEF, _SHT31_ADDRESS_ALT]
@@ -47,8 +49,8 @@ class SHT31:
     def _read_data(self) -> tuple[int, int]:
         try:
             data = self._bus.read_i2c_block_data(self._address, 0x00, 6)
-        except:  # reading from sensor has failed
-            raise
+        except:
+            raise SHT31ReadError
 
         tempRaw = data[0] * 256 + data[1]
         humiRaw = data[3] * 256 + data[4]
@@ -58,7 +60,7 @@ class SHT31:
     def _read_and_convert_data(self) -> tuple[float, float]:
         try:
             tempRaw, humiRaw = self._read_data()
-        except:  # reading from sensor has failed
+        except SHT31ReadError:
             return None, None
 
         tempCelsius = self._calc_celsius_temperature(tempRaw)
