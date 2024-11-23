@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
-'''
-basic script that reads SHT31 data once per second
-'''
+''' example script that reads SHT31 data once per second '''
+
+# pylint: disable=broad-exception-caught,consider-using-f-string
 
 import sys
-sys.path.append(sys.path[0] + '/..')
-
 import time  # noqa: E402
+
+from sht31 import sht31  # noqa: E402
+
+sys.path.append(sys.path[0] + "/..")
 
 try:
     import smbus
 except ImportError:
     import simulation.smbus as smbus
-
-from sht31 import sht31  # noqa: E402
 
 address = 0x44  # default address
 bus = smbus.SMBus(1)
