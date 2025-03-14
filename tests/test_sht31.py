@@ -2,20 +2,16 @@ from sht31 import sht31
 
 import pytest
 
-from unittest.mock import Mock, MagicMock, patch
-
-# use mocked smbus for testing
-smbus = Mock()
-
 
 @pytest.fixture(autouse=True)
-def patch_sleep():
-    with patch("time.sleep"):
-        yield
+def patch_sleep(mocker):
+    mocker.patch("time.sleep")
+    yield
 
 
-@pytest.fixture(scope='session')
-def device():
+@pytest.fixture(scope='function')
+def device(mocker):
+    smbus = mocker.Mock()
     device = sht31.SHT31(bus=smbus)
     yield device
 
@@ -36,10 +32,11 @@ def test_no_bus_error():
     assert str(excinfo.value) == "I2C bus not specified!"
 
 
-def test_wrong_address_error():
+def test_wrong_address_error(mocker):
     """
     Tests that a RuntimeError is raised when an invalid I2C address is provided
     """
+    smbus = mocker.Mock()
     with pytest.raises(ValueError) as excinfo:
         BadAddrDevice = sht31.SHT31(address=0xAB, bus=smbus)
     assert str(excinfo.value) == "Invalid I2C address: 0xab!"
@@ -61,43 +58,44 @@ def test_celsius_conversion(device):
     assert device._calc_celsius_temperature(65535) == 130.0
 
 
-def test_read_data(device):
+def test_read_data(device, mocker):
     """
     Tests the read data function
     """
-    smbus.read_i2c_block_data = MagicMock(return_value=[0x12, 0x34, 0x56,
-                                                        0x78, 0x9A, 0xBC])
+    mocker.patch.object(device._bus, 'read_i2c_block_data', return_value=[0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC])
+
     temp, humi = device._read_data()
 
     assert temp == 0x1234
     assert humi == 0x789A
 
 
-def test_read_and_convert_data_fail(device):
+def test_read_and_convert_data_fail(device, mocker):
     """
     Tests the read and convert data function when read_i2c_block_data fails
     """
-    smbus.read_i2c_block_data = Mock(side_effect=Exception)
+    mocker.patch.object(device._bus, 'read_i2c_block_data', side_effect=Exception)
     temp, humi = device._read_and_convert_data()
 
     assert temp is None
     assert humi is None
 
 
-def test_read_data_fail(device):
+def test_read_data_fail(device, mocker):
     """
     Tests the read data function with read_i2c_block_data failing
     """
-    smbus.read_i2c_block_data = Mock(side_effect=Exception)
+    mocker.patch.object(device._bus, 'read_i2c_block_data', side_effect=Exception)
     temp, humi = device._read_and_convert_data()
 
     assert temp is None
     assert humi is None
 
 
-def test_setup_func(device):
+def test_setup_func(device, mocker):
     """
     Tests the setup function
     """
+    mocker.patch.object(device._bus, 'write_i2c_block_data')
     device._setup()
-    smbus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
+    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
