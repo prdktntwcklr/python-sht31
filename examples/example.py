@@ -2,12 +2,14 @@
 
 """Example script that reads SHT31 data once per second."""
 
+# pylint: disable=wrong-import-position
+
 import sys
 import time  # noqa: E402
 
-from sht31.instance import SHT31
-
 sys.path.append(sys.path[0] + "/..")
+
+from sht31.instance import SHT31  # noqa: E402
 
 try:
     import smbus
