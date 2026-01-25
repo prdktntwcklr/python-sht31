@@ -27,3 +27,20 @@ repos:
           "-rn", # Only display messages
           "-sn", # Don't display the score
         ]
+
+- repo: local
+  hooks:
+    - id: mypy
+      name: mypy
+      entry: mypy
+      language: system
+      args: [--strict, --ignore-missing-imports]
+      files: \.py$
+
+- repo: local
+  hooks:
+    - id: black
+      name: black
+      entry: black
+      language: system
+      files: \.py$
