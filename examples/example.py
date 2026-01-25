@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-''' example script that reads SHT31 data once per second '''
-
-# pylint: disable=broad-exception-caught,consider-using-f-string
+"""Example script that reads SHT31 data once per second."""
 
 import sys
 import time  # noqa: E402
@@ -21,7 +19,7 @@ bus = smbus.SMBus(1)
 
 try:
     sht31 = sht31.SHT31(address=address, bus=bus)
-except Exception as e:
+except ValueError as e:
     print("Initializing SHT31 failed:", e)
     sys.exit(1)
 
@@ -29,8 +27,8 @@ while True:
     temperature, humidity = sht31.get_temp_and_humidity()
 
     if temperature is not None and humidity is not None:
-        print("Temperature: {:.2f}°C".format(temperature))
-        print("Relative humidity: {:.2f}%".format(humidity))
+        print(f"Temperature: {temperature:.2f}°C")
+        print(f"Relative humidity: {humidity:.2f}%")
     else:
         print("Failed to read SHT31! Check if sensor is connected.")
 

@@ -4,6 +4,8 @@
 #
 #    pip-compile --extra=dev --output-file=requirements-dev.txt '.\pyproject.toml'
 #
+astroid==4.0.3
+    # via pylint
 build==1.4.0
     # via python-sht31 (pyproject.toml)
 cfgv==3.5.0
@@ -11,7 +13,10 @@ cfgv==3.5.0
 colorama==0.4.6
     # via
     #   build
+    #   pylint
     #   pytest
+dill==0.4.1
+    # via pylint
 distlib==0.4.0
     # via virtualenv
 filelock==3.20.3
@@ -20,6 +25,10 @@ identify==2.6.16
     # via pre-commit
 iniconfig==2.3.0
     # via pytest
+isort==7.0.0
+    # via pylint
+mccabe==0.7.0
+    # via pylint
 nodeenv==1.10.0
     # via pre-commit
 packaging==26.0
@@ -27,13 +36,17 @@ packaging==26.0
     #   build
     #   pytest
 platformdirs==4.5.1
-    # via virtualenv
+    # via
+    #   pylint
+    #   virtualenv
 pluggy==1.6.0
     # via pytest
 pre-commit==4.5.1
     # via python-sht31 (pyproject.toml)
 pygments==2.19.2
     # via pytest
+pylint==4.0.4
+    # via python-sht31 (pyproject.toml)
 pyproject-hooks==1.2.0
     # via build
 pytest==9.0.2
@@ -44,5 +57,7 @@ pytest-mock==3.15.1
     # via python-sht31 (pyproject.toml)
 pyyaml==6.0.3
     # via pre-commit
+tomlkit==0.14.0
+    # via pylint
 virtualenv==20.36.1
     # via pre-commit
