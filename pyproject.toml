@@ -19,3 +19,11 @@ classifiers = [
 
 [project.urls]
 "Homepage" = "https://github.com/prdktntwcklr/python-sht31"
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.2",
+    "pre_commit>=4.1.0",
+    "pytest>=8.3.5",
+    "pytest-mock>=3.14.0"
+]
