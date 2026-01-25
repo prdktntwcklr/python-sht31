@@ -6,13 +6,18 @@
 #
 astroid==4.0.3
     # via pylint
+black==26.1.0
+    # via python-sht31 (pyproject.toml)
 build==1.4.0
     # via python-sht31 (pyproject.toml)
 cfgv==3.5.0
     # via pre-commit
+click==8.3.1
+    # via black
 colorama==0.4.6
     # via
     #   build
+    #   click
     #   pylint
     #   pytest
 dill==0.4.1
@@ -27,16 +32,30 @@ iniconfig==2.3.0
     # via pytest
 isort==7.0.0
     # via pylint
+librt==0.7.8
+    # via mypy
 mccabe==0.7.0
     # via pylint
+mypy==1.19.1
+    # via python-sht31 (pyproject.toml)
+mypy-extensions==1.1.0
+    # via
+    #   black
+    #   mypy
 nodeenv==1.10.0
     # via pre-commit
 packaging==26.0
     # via
+    #   black
     #   build
     #   pytest
+pathspec==1.0.3
+    # via
+    #   black
+    #   mypy
 platformdirs==4.5.1
     # via
+    #   black
     #   pylint
     #   virtualenv
 pluggy==1.6.0
@@ -55,9 +74,13 @@ pytest==9.0.2
     #   python-sht31 (pyproject.toml)
 pytest-mock==3.15.1
     # via python-sht31 (pyproject.toml)
+pytokens==0.4.0
+    # via black
 pyyaml==6.0.3
     # via pre-commit
 tomlkit==0.14.0
     # via pylint
+typing-extensions==4.15.0
+    # via mypy
 virtualenv==20.36.1
     # via pre-commit
