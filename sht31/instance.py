@@ -33,32 +33,54 @@ class SHT31:
         self._clock_stretching = True
 
     def _read_data(self) -> tuple[int, int]:
+        """
+        Read raw temperature and humidity data from the sensor.
+
+        Returns:
+            tuple[int, int]: (temperature_raw, humidity_raw)
+
+        Raises:
+            SHT31ReadError: If reading from the sensor fails.
+        """
         try:
             data = self._bus.read_i2c_block_data(self._address, 0x00, 6)
-        except:
-            raise SHT31ReadError
+        except OSError as e:
+            raise SHT31ReadError("Failed to read data from sensor") from e
 
-        tempRaw = data[0] * 256 + data[1]
-        humiRaw = data[3] * 256 + data[4]
+        if len(data) != 6:
+            raise SHT31ReadError(f"Unexpected data length: {len(data)} bytes")
 
-        return tempRaw, humiRaw
+        temp_raw = (data[0] << 8) | data[1]
+        humi_raw = (data[3] << 8) | data[4]
+
+        return temp_raw, humi_raw
 
     def _read_and_convert_data(self) -> tuple[float, float] | tuple[None, None]:
         try:
-            tempRaw, humiRaw = self._read_data()
+            temp_raw, humi_raw = self._read_data()
         except SHT31ReadError:
             return None, None
 
-        tempCelsius = self._calc_celsius_temperature(tempRaw)
-        humiRelative = self._calc_relative_humidity(humiRaw)
+        temp_celsius = self._calc_celsius_temperature(temp_raw)
+        humi_relative = self._calc_relative_humidity(humi_raw)
 
-        return tempCelsius, humiRelative
+        return temp_celsius, humi_relative
 
-    def _calc_relative_humidity(self, humiVal: int) -> float:
-        return 100 * humiVal / (65536.0 - 1.0)
+    def _calc_relative_humidity(self, raw: int) -> float:
+        """
+        Convert 16-bit raw humidity value to percentage (0.0 to 100.0).
+        """
+        raw = max(0, min(0xFFFF, raw))
+        return (raw / 0xFFFF) * 100.0
 
-    def _calc_celsius_temperature(self, tempVal: int) -> float:
-        return -45 + (175 * tempVal / (65536.0 - 1.0))
+    def _calc_celsius_temperature(self, raw: int) -> float:
+        """
+        Convert 16-bit raw temperature value to degrees Celsius.
+
+        Formula: T = -45 + 175 * raw / (2^16 - 1)
+        """
+        raw = max(0, min(0xFFFF, raw))
+        return -45.0 + (175.0 * raw) / 0xFFFF
 
     def _command(self, command: int) -> None:
         cmd = struct.pack(">H", command)
@@ -66,13 +88,22 @@ class SHT31:
         self._bus.write_i2c_block_data(self._address, cmd[0], [cmd[1]])
 
     def _setup(self) -> None:
-        for command in SHT31_SINGLE_COMMANDS:
+        """
+        Configure the sensor for measurement if it has not been initialized.
+        """
+        if getattr(self, "_initialized", False):
+            return
+
+        for repeatability, clock_stretching, command in SHT31_SINGLE_COMMANDS:
             if (
-                self._repeatability == command[0]
-                and self._clock_stretching == command[1]
+                self._repeatability == repeatability
+                and self._clock_stretching == clock_stretching
             ):
-                self._command(command[2])
+                self._command(command)
+                break
+
         time.sleep(0.5)
+        self._initialized = True
 
     def reset(self) -> None:
         self._command(SHT31_CMD_BREAK)
@@ -81,8 +112,16 @@ class SHT31:
         time.sleep(0.0015)
 
     def get_temp_and_humidity(self) -> tuple[float | None, float | None]:
+        """
+        Read temperature and relative humidity from the sensor.
+
+        Returns:
+            A tuple (temperature_celsius, relative_humidity) where each value
+            is a float if the measurement succeeds, or None if the value
+            could not be obtained.
+        """
         self._setup()
 
-        tempCelsius, humiRelative = self._read_and_convert_data()
+        temp_celsius, humi_relative = self._read_and_convert_data()
 
-        return tempCelsius, humiRelative
+        return temp_celsius, humi_relative

@@ -1,4 +1,6 @@
-from sht31 import instance
+# pylint: disable=protected-access,redefined-outer-name
+
+from sht31 import instance, constants
 
 import pytest
 
@@ -21,49 +23,68 @@ def device(mocker: MockerFixture) -> Generator["instance.SHT31", None, None]:
 
 def test_default_address(device: instance.SHT31) -> None:
     """
-    Tests that the I2C address defaults to 0x44
+    Tests that the I2C device address defaults to 0x44.
     """
     assert device._address == 0x44
 
 
+def test_overriding_address(mocker: MockerFixture) -> None:
+    """
+    Tests that the I2C device address can be overriden to 0x45.
+    """
+    smbus = mocker.Mock()
+    alt_addr_device = instance.SHT31(address=0x45, bus=smbus)
+    assert alt_addr_device._address == 0x45
+
+
 def test_no_bus_error() -> None:
     """
-    Tests that a RuntimeError is raised when the no I2C is specified
+    Tests that a RuntimeError is raised when the no I2C is specified.
     """
     with pytest.raises(ValueError) as excinfo:
-        NoBusDevice = instance.SHT31()
+        no_bus_device = instance.SHT31()
     assert str(excinfo.value) == "I2C bus not specified!"
 
 
 def test_wrong_address_error(mocker: MockerFixture) -> None:
     """
-    Tests that a RuntimeError is raised when an invalid I2C address is provided
+    Tests that a RuntimeError is raised when an invalid I2C address is provided.
     """
     smbus = mocker.Mock()
     with pytest.raises(ValueError) as excinfo:
-        BadAddrDevice = instance.SHT31(address=0xAB, bus=smbus)
+        bad_addr_device = instance.SHT31(address=0xAB, bus=smbus)
     assert str(excinfo.value) == "Invalid I2C address: 0xab!"
 
 
 def test_humidity_conversion(device: instance.SHT31) -> None:
     """
-    Tests the conversion to relative humidity
+    Tests the conversion to relative humidity.
     """
     assert device._calc_relative_humidity(0) == 0.0
-    assert device._calc_relative_humidity(65535) == 100.0
+    assert device._calc_relative_humidity(0x1234) == pytest.approx(7.11, 0.1)
+    assert device._calc_relative_humidity(0xFFFF) == 100.0
+
+    # test values out of range
+    assert device._calc_relative_humidity(-100) == 0.0
+    assert device._calc_relative_humidity(0x12345) == 100.0
 
 
 def test_celsius_conversion(device: instance.SHT31) -> None:
     """
-    Tests the conversion to Celsius temperature
+    Tests the conversion to Celsius temperature.
     """
     assert device._calc_celsius_temperature(0) == -45.0
-    assert device._calc_celsius_temperature(65535) == 130.0
+    assert device._calc_celsius_temperature(0x1234) == pytest.approx(-32.55, 0.1)
+    assert device._calc_celsius_temperature(0xFFFF) == 130.0
+
+    # test values out of range
+    assert device._calc_celsius_temperature(-100) == -45.0
+    assert device._calc_celsius_temperature(0x12345) == 130.0
 
 
 def test_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
     """
-    Tests the read data function
+    Tests the read data function.
     """
     mocker.patch.object(
         device._bus,
@@ -81,9 +102,9 @@ def test_read_and_convert_data_fail(
     device: instance.SHT31, mocker: MockerFixture
 ) -> None:
     """
-    Tests the read and convert data function when read_i2c_block_data fails
+    Tests the read and convert data function when read_i2c_block_data fails.
     """
-    mocker.patch.object(device._bus, "read_i2c_block_data", side_effect=Exception)
+    mocker.patch.object(device._bus, "read_i2c_block_data", side_effect=OSError)
     temp, humi = device._read_and_convert_data()
 
     assert temp is None
@@ -92,19 +113,40 @@ def test_read_and_convert_data_fail(
 
 def test_read_data_fail(device: instance.SHT31, mocker: MockerFixture) -> None:
     """
-    Tests the read data function with read_i2c_block_data failing
+    Tests the read data function with read_i2c_block_data failing.
     """
-    mocker.patch.object(device._bus, "read_i2c_block_data", side_effect=Exception)
+    mocker.patch.object(device._bus, "read_i2c_block_data", side_effect=OSError)
     temp, humi = device._read_and_convert_data()
 
     assert temp is None
     assert humi is None
 
 
-def test_setup_func(device: instance.SHT31, mocker: MockerFixture) -> None:
+def test_setup_function(device: instance.SHT31, mocker: MockerFixture) -> None:
     """
-    Tests the setup function
+    Tests the setup function.
     """
     mocker.patch.object(device._bus, "write_i2c_block_data")
+    device._setup()
+    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
+
+
+def test_command_function(device: instance.SHT31, mocker: MockerFixture) -> None:
+    """
+    Tests the command function.
+    """
+    mocker.patch.object(device._bus, "write_i2c_block_data")
+    device._command(constants.SHT31_CMD_SOFTRESET)
+    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x30, [0xA2])
+
+
+def test_setup_function_repeated_calls(
+    device: instance.SHT31, mocker: MockerFixture
+) -> None:
+    """
+    Tests that _setup() writes data only once for initialization.
+    """
+    mocker.patch.object(device._bus, "write_i2c_block_data")
+    device._setup()
     device._setup()
     device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
