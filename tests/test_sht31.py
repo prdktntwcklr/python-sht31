@@ -122,13 +122,15 @@ def test_read_data_fail(device: instance.SHT31, mocker: MockerFixture) -> None:
     assert humi is None
 
 
-def test_setup_function(device: instance.SHT31, mocker: MockerFixture) -> None:
+def test_send_measurement_cmd_function(
+    device: instance.SHT31, mocker: MockerFixture
+) -> None:
     """
-    Tests the setup function.
+    Tests the _send_measurement_cmd function.
     """
     mocker.patch.object(device._bus, "write_i2c_block_data")
-    device._setup()
-    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])
+    device._send_measurement_cmd()
+    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x24, [0x00])
 
 
 def test_command_function(device: instance.SHT31, mocker: MockerFixture) -> None:
@@ -138,15 +140,3 @@ def test_command_function(device: instance.SHT31, mocker: MockerFixture) -> None
     mocker.patch.object(device._bus, "write_i2c_block_data")
     device._command(constants.SHT31_CMD_SOFTRESET)
     device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x30, [0xA2])
-
-
-def test_setup_function_repeated_calls(
-    device: instance.SHT31, mocker: MockerFixture
-) -> None:
-    """
-    Tests that _setup() writes data only once for initialization.
-    """
-    mocker.patch.object(device._bus, "write_i2c_block_data")
-    device._setup()
-    device._setup()
-    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x2C, [0x06])

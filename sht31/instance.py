@@ -27,10 +27,9 @@ class SHT31:
         self._address = address
         self._bus = bus
 
-        # use high repeatability single-shot measurement with clock stretching
         # TODO: let user change these settings
         self._repeatability = SHT31_REP_HIGH
-        self._clock_stretching = True
+        self._clock_stretching = False
 
     def _read_data(self) -> tuple[int, int]:
         """
@@ -87,13 +86,14 @@ class SHT31:
 
         self._bus.write_i2c_block_data(self._address, cmd[0], [cmd[1]])
 
-    def _setup(self) -> None:
+    def _send_measurement_cmd(self) -> None:
         """
-        Configure the sensor for measurement if it has not been initialized.
-        """
-        if getattr(self, "_initialized", False):
-            return
+        Triggers a single-shot measurement cycle.
 
+        Sends the I2C command to transition the sensor from idle to measuring
+        mode. This must be called before every read attempt when in single shot
+        mode.
+        """
         for repeatability, clock_stretching, command in SHT31_SINGLE_COMMANDS:
             if (
                 self._repeatability == repeatability
@@ -102,8 +102,8 @@ class SHT31:
                 self._command(command)
                 break
 
-        time.sleep(0.5)
-        self._initialized = True
+        # maximum measurement duration is 15ms (see p7 of datasheet)
+        time.sleep(0.05)
 
     def reset(self) -> None:
         self._command(SHT31_CMD_BREAK)
@@ -120,7 +120,7 @@ class SHT31:
             is a float if the measurement succeeds, or None if the value
             could not be obtained.
         """
-        self._setup()
+        self._send_measurement_cmd()
 
         temp_celsius, humi_relative = self._read_and_convert_data()
 
