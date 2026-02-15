@@ -1,6 +1,7 @@
 # pylint: disable=protected-access,redefined-outer-name
 
 from sht31 import instance, constants
+from sht31.exceptions import SHT31ReadError
 
 import pytest
 
@@ -96,6 +97,20 @@ def test_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
 
     assert temp == 0x1234
     assert humi == 0x789A
+
+
+def test_fail_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
+    """
+    Tests the read data function when read_i2c_block_data only returns 5 bytes.
+    """
+    mocker.patch.object(
+        device._bus,
+        "read_i2c_block_data",
+        return_value=[0x12, 0x34, 0x56, 0x78, 0x9A],
+    )
+
+    with pytest.raises(SHT31ReadError):
+        _, _ = device._read_data()
 
 
 def test_read_and_convert_data_fail(

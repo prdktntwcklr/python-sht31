@@ -8,10 +8,13 @@ import time
 
 from sht31.constants import (
     SHT31_ADDRESSES,
-    SHT31_REP_HIGH,
-    SHT31_SINGLE_COMMANDS,
     SHT31_CMD_BREAK,
     SHT31_CMD_SOFTRESET,
+    SHT31_MIN_TEMPERATURE,
+    SHT31_REP_HIGH,
+    SHT31_RESPONSE_LENGTH,
+    SHT31_SINGLE_COMMANDS,
+    SHT31_TEMPERATURE_RANGE,
 )
 from sht31.exceptions import SHT31ReadError
 
@@ -42,11 +45,13 @@ class SHT31:
             SHT31ReadError: If reading from the sensor fails.
         """
         try:
-            data = self._bus.read_i2c_block_data(self._address, 0x00, 6)
+            data = self._bus.read_i2c_block_data(
+                self._address, 0x00, SHT31_RESPONSE_LENGTH
+            )
         except OSError as e:
             raise SHT31ReadError("Failed to read data from sensor") from e
 
-        if len(data) != 6:
+        if len(data) != SHT31_RESPONSE_LENGTH:
             raise SHT31ReadError(f"Unexpected data length: {len(data)} bytes")
 
         temp_raw = (data[0] << 8) | data[1]
@@ -79,11 +84,9 @@ class SHT31:
         Formula: T = -45 + 175 * raw / (2^16 - 1)
         """
         raw = max(0, min(0xFFFF, raw))
-        return -45.0 + (175.0 * raw) / 0xFFFF
+        return SHT31_MIN_TEMPERATURE + (SHT31_TEMPERATURE_RANGE * raw) / 0xFFFF
 
-    def _command(self, command: int) -> None:
-        cmd = struct.pack(">H", command)
-
+    def _command(self, cmd: list[int]) -> None:
         self._bus.write_i2c_block_data(self._address, cmd[0], [cmd[1]])
 
     def _send_measurement_cmd(self) -> None:
