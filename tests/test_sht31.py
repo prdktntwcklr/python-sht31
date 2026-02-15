@@ -153,5 +153,12 @@ def test_command_function(device: instance.SHT31, mocker: MockerFixture) -> None
     Tests the command function.
     """
     mocker.patch.object(device._bus, "write_i2c_block_data")
-    device._command(constants.SHT31_CMD_SOFTRESET)
+    device._send_command(constants.SHT31_CMD_SOFTRESET)
     device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x30, [0xA2])
+
+
+def test_no_matching_settings(device: instance.SHT31) -> None:
+    device._repeatability = "Unknown Value"
+
+    with pytest.raises(ValueError):
+        device._send_measurement_cmd()

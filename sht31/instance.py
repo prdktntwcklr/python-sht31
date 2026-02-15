@@ -86,8 +86,24 @@ class SHT31:
         raw = max(0, min(0xFFFF, raw))
         return SHT31_MIN_TEMPERATURE + (SHT31_TEMPERATURE_RANGE * raw) / 0xFFFF
 
-    def _command(self, cmd: list[int]) -> None:
+    def _send_command(self, cmd: list[int]) -> None:
         self._bus.write_i2c_block_data(self._address, cmd[0], [cmd[1]])
+
+    def _get_command_index(self) -> int:
+        """
+        Returns the index of the command that matches the current repeatability
+        and clock_stretching settings or -1 if no matching command found.
+        """
+        for index, (repeatability, clock_stretching, _) in enumerate(
+            SHT31_SINGLE_COMMANDS
+        ):
+            if (
+                self._repeatability == repeatability
+                and self._clock_stretching == clock_stretching
+            ):
+                return index
+
+        return -1
 
     def _send_measurement_cmd(self) -> None:
         """
@@ -97,21 +113,23 @@ class SHT31:
         mode. This must be called before every read attempt when in single shot
         mode.
         """
-        for repeatability, clock_stretching, command in SHT31_SINGLE_COMMANDS:
-            if (
-                self._repeatability == repeatability
-                and self._clock_stretching == clock_stretching
-            ):
-                self._command(command)
-                break
+        cmd_index = self._get_command_index()
+
+        if cmd_index != -1:
+            _, _, command = SHT31_SINGLE_COMMANDS[cmd_index]
+            self._send_command(command)
+        else:
+            raise ValueError(
+                "No matching command found for the given repeatability and clock stretching settings."
+            )
 
         # maximum measurement duration is 15ms (see p7 of datasheet)
         time.sleep(0.05)
 
     def reset(self) -> None:
-        self._command(SHT31_CMD_BREAK)
+        self._send_command(SHT31_CMD_BREAK)
         time.sleep(0.001)
-        self._command(SHT31_CMD_SOFTRESET)
+        self._send_command(SHT31_CMD_SOFTRESET)
         time.sleep(0.0015)
 
     def get_temp_and_humidity(self) -> tuple[float | None, float | None]:
