@@ -1,6 +1,7 @@
 # pylint: disable=protected-access,redefined-outer-name
 
 from sht31 import instance, constants
+from sht31.exceptions import SHT31ReadError
 
 import pytest
 
@@ -98,6 +99,20 @@ def test_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
     assert humi == 0x789A
 
 
+def test_fail_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
+    """
+    Tests the read data function when read_i2c_block_data only returns 5 bytes.
+    """
+    mocker.patch.object(
+        device._bus,
+        "read_i2c_block_data",
+        return_value=[0x12, 0x34, 0x56, 0x78, 0x9A],
+    )
+
+    with pytest.raises(SHT31ReadError):
+        _, _ = device._read_data()
+
+
 def test_read_and_convert_data_fail(
     device: instance.SHT31, mocker: MockerFixture
 ) -> None:
@@ -138,5 +153,12 @@ def test_command_function(device: instance.SHT31, mocker: MockerFixture) -> None
     Tests the command function.
     """
     mocker.patch.object(device._bus, "write_i2c_block_data")
-    device._command(constants.SHT31_CMD_SOFTRESET)
+    device._send_command(constants.SHT31_CMD_SOFTRESET)
     device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x30, [0xA2])
+
+
+def test_no_matching_settings(device: instance.SHT31) -> None:
+    device._repeatability = "Unknown Value"
+
+    with pytest.raises(ValueError):
+        device._send_measurement_cmd()
