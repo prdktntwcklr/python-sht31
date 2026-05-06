@@ -22,12 +22,13 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "black==26.1.0",
+    "black>=26.3.1",
     "build>=1.2.2",
     "mypy>=1.19.1",
     "pre_commit>=4.1.0",
+    "pygments>=2.20.0", # Pinning pygments to fix CVE-2026-4539
     "pylint>=4.0.4",
-    "pytest>=8.3.5",
+    "pytest>=9.0.3",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.14.0"
 ]

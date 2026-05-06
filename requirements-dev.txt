@@ -6,7 +6,7 @@
 #
 astroid==4.0.3
     # via pylint
-black==26.1.0
+black==26.3.1
     # via python-sht31 (pyproject.toml)
 build==1.4.0
     # via python-sht31 (pyproject.toml)
@@ -66,13 +66,15 @@ pluggy==1.6.0
     #   pytest-cov
 pre-commit==4.5.1
     # via python-sht31 (pyproject.toml)
-pygments==2.19.2
-    # via pytest
+pygments==2.20.0
+    # via
+    #   pytest
+    #   python-sht31 (pyproject.toml)
 pylint==4.0.4
     # via python-sht31 (pyproject.toml)
 pyproject-hooks==1.2.0
     # via build
-pytest==9.0.2
+pytest==9.0.3
     # via
     #   pytest-cov
     #   pytest-mock
