@@ -1,164 +1,141 @@
-# pylint: disable=protected-access,redefined-outer-name
-
-from sht31 import instance, constants
-from sht31.exceptions import SHT31ReadError
+from pathlib import Path
 
 import pytest
 
-from pytest_mock import MockerFixture
-from typing import Generator
+from sht31.exceptions import SHT31ReadError
+from sht31.instance import SHT31
 
 
-@pytest.fixture(autouse=True)
-def patch_sleep(mocker: MockerFixture) -> Generator[None, None, None]:
-    mocker.patch("time.sleep")
-    yield
+def create_hwmon_device(
+    hwmon_root: Path,
+    directory: str = "hwmon0",
+    name: str = "sht3x",
+    temperature: str = "21500",
+    humidity: str = "48300",
+) -> Path:
+    device_path = hwmon_root / directory
+    device_path.mkdir(parents=True)
+    (device_path / "name").write_text(name, encoding="utf-8")
+    (device_path / "temp1_input").write_text(temperature, encoding="utf-8")
+    (device_path / "humidity1_input").write_text(humidity, encoding="utf-8")
+    return device_path
 
 
-@pytest.fixture(scope="function")
-def device(mocker: MockerFixture) -> Generator["instance.SHT31", None, None]:
-    smbus = mocker.Mock()
-    device = instance.SHT31(bus=smbus)
-    yield device
+def test_reads_and_converts_hwmon_values(tmp_path: Path) -> None:
+    hwmon_root = tmp_path / "hwmon"
+    create_hwmon_device(
+        hwmon_root,
+        directory="hwmon7",
+        temperature="21500\n",
+        humidity="48300\n",
+    )
+    (hwmon_root / "hwmon0").mkdir()
+
+    sensor = SHT31(hwmon_root=hwmon_root)
+
+    assert sensor.get_temp_and_humidity() == pytest.approx((21.5, 48.3))
 
 
-def test_default_address(device: instance.SHT31) -> None:
-    """
-    Tests that the I2C device address defaults to 0x44.
-    """
-    assert device._address == 0x44
-
-
-def test_overriding_address(mocker: MockerFixture) -> None:
-    """
-    Tests that the I2C device address can be overriden to 0x45.
-    """
-    smbus = mocker.Mock()
-    alt_addr_device = instance.SHT31(address=0x45, bus=smbus)
-    assert alt_addr_device._address == 0x45
-
-
-def test_no_bus_error() -> None:
-    """
-    Tests that a RuntimeError is raised when the no I2C is specified.
-    """
-    with pytest.raises(ValueError) as excinfo:
-        no_bus_device = instance.SHT31()
-    assert str(excinfo.value) == "I2C bus not specified!"
-
-
-def test_wrong_address_error(mocker: MockerFixture) -> None:
-    """
-    Tests that a RuntimeError is raised when an invalid I2C address is provided.
-    """
-    smbus = mocker.Mock()
-    with pytest.raises(ValueError) as excinfo:
-        bad_addr_device = instance.SHT31(address=0xAB, bus=smbus)
-    assert str(excinfo.value) == "Invalid I2C address: 0xab!"
-
-
-def test_humidity_conversion(device: instance.SHT31) -> None:
-    """
-    Tests the conversion to relative humidity.
-    """
-    assert device._calc_relative_humidity(0) == 0.0
-    assert device._calc_relative_humidity(0x1234) == pytest.approx(7.11, 0.1)
-    assert device._calc_relative_humidity(0xFFFF) == 100.0
-
-    # test values out of range
-    assert device._calc_relative_humidity(-100) == 0.0
-    assert device._calc_relative_humidity(0x12345) == 100.0
-
-
-def test_celsius_conversion(device: instance.SHT31) -> None:
-    """
-    Tests the conversion to Celsius temperature.
-    """
-    assert device._calc_celsius_temperature(0) == -45.0
-    assert device._calc_celsius_temperature(0x1234) == pytest.approx(-32.55, 0.1)
-    assert device._calc_celsius_temperature(0xFFFF) == 130.0
-
-    # test values out of range
-    assert device._calc_celsius_temperature(-100) == -45.0
-    assert device._calc_celsius_temperature(0x12345) == 130.0
-
-
-def test_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
-    """
-    Tests the read data function.
-    """
-    mocker.patch.object(
-        device._bus,
-        "read_i2c_block_data",
-        return_value=[0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC],
+def test_discovers_sht3x_among_other_hwmon_devices(tmp_path: Path) -> None:
+    hwmon_root = tmp_path / "hwmon"
+    create_hwmon_device(hwmon_root, directory="hwmon0", name="other_sensor")
+    create_hwmon_device(
+        hwmon_root,
+        directory="hwmon4",
+        temperature="-1250",
+        humidity="50875",
     )
 
-    temp, humi = device._read_data()
+    sensor = SHT31(hwmon_root=hwmon_root)
 
-    assert temp == 0x1234
-    assert humi == 0x789A
-
-
-def test_fail_read_data(device: instance.SHT31, mocker: MockerFixture) -> None:
-    """
-    Tests the read data function when read_i2c_block_data only returns 5 bytes.
-    """
-    mocker.patch.object(
-        device._bus,
-        "read_i2c_block_data",
-        return_value=[0x12, 0x34, 0x56, 0x78, 0x9A],
-    )
-
-    with pytest.raises(SHT31ReadError):
-        _, _ = device._read_data()
+    assert sensor.get_temp_and_humidity() == pytest.approx((-1.25, 50.875))
 
 
-def test_read_and_convert_data_fail(
-    device: instance.SHT31, mocker: MockerFixture
+def test_raises_when_no_sht3x_device_is_found(tmp_path: Path) -> None:
+    hwmon_root = tmp_path / "hwmon"
+    create_hwmon_device(hwmon_root, name="other_sensor")
+
+    with pytest.raises(SHT31ReadError, match="sht3x"):
+        SHT31(hwmon_root=hwmon_root)
+
+
+def test_raises_when_hwmon_root_does_not_exist(tmp_path: Path) -> None:
+    with pytest.raises(SHT31ReadError, match="hwmon"):
+        SHT31(hwmon_root=tmp_path / "missing")
+
+
+def test_raises_when_multiple_sht3x_devices_are_found(tmp_path: Path) -> None:
+    hwmon_root = tmp_path / "hwmon"
+    create_hwmon_device(hwmon_root, directory="hwmon1")
+    create_hwmon_device(hwmon_root, directory="hwmon2")
+
+    with pytest.raises(SHT31ReadError, match="multiple"):
+        SHT31(hwmon_root=hwmon_root)
+
+
+@pytest.mark.parametrize(
+    ("attribute", "temperature", "humidity"),
+    [
+        ("temp1_input", None, "48300"),
+        ("humidity1_input", "21500", None),
+    ],
+)
+def test_raises_when_required_attribute_is_missing(
+    tmp_path: Path,
+    attribute: str,
+    temperature: str | None,
+    humidity: str | None,
 ) -> None:
-    """
-    Tests the read and convert data function when read_i2c_block_data fails.
-    """
-    mocker.patch.object(device._bus, "read_i2c_block_data", side_effect=OSError)
-    temp, humi = device._read_and_convert_data()
+    hwmon_root = tmp_path / "hwmon"
+    device_path = hwmon_root / "hwmon0"
+    device_path.mkdir(parents=True)
+    (device_path / "name").write_text("sht3x", encoding="utf-8")
+    if temperature is not None:
+        (device_path / "temp1_input").write_text(temperature, encoding="utf-8")
+    if humidity is not None:
+        (device_path / "humidity1_input").write_text(humidity, encoding="utf-8")
 
-    assert temp is None
-    assert humi is None
+    sensor = SHT31(hwmon_root=hwmon_root)
 
-
-def test_read_data_fail(device: instance.SHT31, mocker: MockerFixture) -> None:
-    """
-    Tests the read data function with read_i2c_block_data failing.
-    """
-    mocker.patch.object(device._bus, "read_i2c_block_data", side_effect=OSError)
-    temp, humi = device._read_and_convert_data()
-
-    assert temp is None
-    assert humi is None
+    with pytest.raises(SHT31ReadError, match=attribute):
+        sensor.get_temp_and_humidity()
 
 
-def test_send_measurement_cmd_function(
-    device: instance.SHT31, mocker: MockerFixture
+@pytest.mark.parametrize(
+    ("attribute", "value"),
+    [
+        ("temp1_input", "not-a-number"),
+        ("humidity1_input", ""),
+        ("temp1_input", "21.5"),
+    ],
+)
+def test_raises_when_attribute_value_is_not_an_integer(
+    tmp_path: Path, attribute: str, value: str
 ) -> None:
-    """
-    Tests the _send_measurement_cmd function.
-    """
-    mocker.patch.object(device._bus, "write_i2c_block_data")
-    device._send_measurement_cmd()
-    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x24, [0x00])
+    hwmon_root = tmp_path / "hwmon"
+    device_path = create_hwmon_device(hwmon_root)
+    (device_path / attribute).write_text(value, encoding="utf-8")
+    sensor = SHT31(hwmon_root=hwmon_root)
+
+    with pytest.raises(SHT31ReadError, match=attribute):
+        sensor.get_temp_and_humidity()
 
 
-def test_command_function(device: instance.SHT31, mocker: MockerFixture) -> None:
-    """
-    Tests the command function.
-    """
-    mocker.patch.object(device._bus, "write_i2c_block_data")
-    device._send_command(constants.SHT31_CMD_SOFTRESET)
-    device._bus.write_i2c_block_data.assert_called_once_with(0x44, 0x30, [0xA2])
+def test_raises_with_context_when_attribute_cannot_be_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hwmon_root = tmp_path / "hwmon"
+    device_path = create_hwmon_device(hwmon_root)
+    attribute_path = device_path / "humidity1_input"
+    original_read_text = Path.read_text
 
+    def read_text(path: Path, *args: object, **kwargs: object) -> str:
+        if path == attribute_path:
+            raise PermissionError("permission denied")
+        return original_read_text(path, *args, **kwargs)
 
-def test_no_matching_settings(device: instance.SHT31) -> None:
-    device._repeatability = "Unknown Value"
+    monkeypatch.setattr(Path, "read_text", read_text)
+    sensor = SHT31(hwmon_root=hwmon_root)
 
-    with pytest.raises(ValueError):
-        device._send_measurement_cmd()
+    with pytest.raises(SHT31ReadError, match="humidity1_input"):
+        sensor.get_temp_and_humidity()
