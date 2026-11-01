@@ -46,6 +46,22 @@ install it with `pip`:
 python -m pip install python-sht31-0.1.1.tar.gz
 ```
 
+## Development
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then
+sync the locked development dependencies and run the test suite:
+
+```bash
+uv sync
+uv run pytest tests -vv
+```
+
+Build the source distribution and wheel with:
+
+```bash
+uv build
+```
+
 ## Usage
 
 ```python

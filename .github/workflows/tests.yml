@@ -8,29 +8,22 @@ on:
       - ".github/workflows/tests.yml"
       - "tests/**"
       - "sht31/**"
-      - "requirements-dev.txt"
+      - "pyproject.toml"
+      - "uv.lock"
 
 jobs:
   run-unit-tests:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
-    strategy:
-      max-parallel: 1
-      matrix:
-        python-version: [3.11]
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+        run: uv sync --locked
 
       - name: Run all tests
-        run: pytest tests -vv
+        run: uv run --locked pytest tests -vv
