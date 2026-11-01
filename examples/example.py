@@ -14,7 +14,7 @@ def main() -> None:
         sensor = SHT31()
     except SHT31ReadError as error:
         print(f"Initializing SHT31 failed: {error}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     while True:
         try:
@@ -27,6 +27,9 @@ def main() -> None:
 
         time.sleep(1)
 
+    # this line is never reached
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
