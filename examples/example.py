@@ -9,7 +9,7 @@ from sht31.exceptions import SHT31ReadError
 from sht31.instance import SHT31
 
 
-def main() -> None:
+def main() -> int:
     try:
         sensor = SHT31()
     except SHT31ReadError as error:
