@@ -17,6 +17,17 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
+      - name: Check release tag matches project version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PROJECT_VERSION="$(uv version --short)"
+          RELEASE_VERSION="${RELEASE_TAG#v}"
+          if [ "$RELEASE_VERSION" != "$PROJECT_VERSION" ]; then
+            echo "::error::Release tag '$RELEASE_TAG' does not match project version '$PROJECT_VERSION' in pyproject.toml."
+            exit 1
+          fi
+
       - name: Build package
         run: uv build
 

@@ -46,9 +46,12 @@ install its source distribution with `pip`:
 python -m pip install python-sht31-0.1.1.tar.gz
 ```
 
-When a GitHub release is published, the release workflow builds the package
-and automatically attaches the wheel and source distribution to that release.
-Draft releases are not built until they are published.
+When a GitHub release is published, the release workflow checks that its tag
+matches the version in `pyproject.toml` (for example, tag `v0.1.1` for version
+`0.1.1`). If they differ, the workflow fails without building or attaching
+artifacts. When they match, it builds the package and attaches the wheel and
+source distribution to the release. Draft releases are not built until
+published.
 
 ## Development
 
