@@ -1,148 +1,64 @@
-try:
-    import smbus
-except ImportError:
-    import simulation.smbus as smbus
+from pathlib import Path
 
-import struct
-import time
-
-from sht31.constants import (
-    SHT31_ADDRESSES,
-    SHT31_CMD_BREAK,
-    SHT31_CMD_SOFTRESET,
-    SHT31_MIN_TEMPERATURE,
-    SHT31_REP_HIGH,
-    SHT31_RESPONSE_LENGTH,
-    SHT31_SINGLE_COMMANDS,
-    SHT31_TEMPERATURE_RANGE,
-)
 from sht31.exceptions import SHT31ReadError
 
 
 class SHT31:
-    def __init__(self, address: int = SHT31_ADDRESSES[0], bus: smbus = None) -> None:
-        if address not in SHT31_ADDRESSES:
-            raise ValueError(f"Invalid I2C address: {hex(address)}!")
+    """Read an SHT31 sensor exposed through Linux's hwmon interface."""
 
-        if not bus:
-            raise ValueError("I2C bus not specified!")
+    def __init__(self, hwmon_root: str | Path = Path("/sys/class/hwmon")) -> None:
+        self._device_path = self._find_device(Path(hwmon_root))
 
-        self._address = address
-        self._bus = bus
+    @staticmethod
+    def _find_device(hwmon_root: Path) -> Path:
+        if not hwmon_root.is_dir():
+            raise SHT31ReadError(f"hwmon directory does not exist: {hwmon_root}")
 
-        # TODO: let user change these settings
-        self._repeatability = SHT31_REP_HIGH
-        self._clock_stretching = False
-
-    def _read_data(self) -> tuple[int, int]:
-        """
-        Read raw temperature and humidity data from the sensor.
-
-        Returns:
-            tuple[int, int]: (temperature_raw, humidity_raw)
-
-        Raises:
-            SHT31ReadError: If reading from the sensor fails.
-        """
         try:
-            data = self._bus.read_i2c_block_data(
-                self._address, 0x00, SHT31_RESPONSE_LENGTH
+            hwmon_devices = sorted(
+                path for path in hwmon_root.iterdir() if path.name.startswith("hwmon")
             )
-        except OSError as e:
-            raise SHT31ReadError("Failed to read data from sensor") from e
+        except OSError as error:
+            raise SHT31ReadError(
+                f"Failed to list hwmon devices in {hwmon_root}"
+            ) from error
 
-        if len(data) != SHT31_RESPONSE_LENGTH:
-            raise SHT31ReadError(f"Unexpected data length: {len(data)} bytes")
+        matching_devices: list[Path] = []
+        for device_path in hwmon_devices:
+            name_path = device_path / "name"
+            if not name_path.is_file():
+                continue
 
-        temp_raw = (data[0] << 8) | data[1]
-        humi_raw = (data[3] << 8) | data[4]
+            try:
+                name = name_path.read_text(encoding="utf-8").strip()
+            except OSError as error:
+                raise SHT31ReadError(f"Failed to read {name_path}") from error
 
-        return temp_raw, humi_raw
+            if name == "sht3x":
+                matching_devices.append(device_path)
 
-    def _read_and_convert_data(self) -> tuple[float, float] | tuple[None, None]:
+        if not matching_devices:
+            raise SHT31ReadError(f"No sht3x device found in {hwmon_root}")
+        if len(matching_devices) > 1:
+            raise SHT31ReadError(f"Found multiple sht3x devices in {hwmon_root}")
+
+        return matching_devices[0]
+
+    def _read_attribute(self, attribute: str) -> float:
+        attribute_path = self._device_path / attribute
         try:
-            temp_raw, humi_raw = self._read_data()
-        except SHT31ReadError:
-            return None, None
+            value = int(attribute_path.read_text(encoding="utf-8").strip())
+        except OSError as error:
+            raise SHT31ReadError(f"Failed to read {attribute_path}") from error
+        except ValueError as error:
+            raise SHT31ReadError(
+                f"Invalid integer value in {attribute_path}"
+            ) from error
 
-        temp_celsius = self._calc_celsius_temperature(temp_raw)
-        humi_relative = self._calc_relative_humidity(humi_raw)
+        return value / 1000
 
-        return temp_celsius, humi_relative
-
-    def _calc_relative_humidity(self, raw: int) -> float:
-        """
-        Convert 16-bit raw humidity value to percentage (0.0 to 100.0).
-        """
-        raw = max(0, min(0xFFFF, raw))
-        return (raw / 0xFFFF) * 100.0
-
-    def _calc_celsius_temperature(self, raw: int) -> float:
-        """
-        Convert 16-bit raw temperature value to degrees Celsius.
-
-        Formula: T = -45 + 175 * raw / (2^16 - 1)
-        """
-        raw = max(0, min(0xFFFF, raw))
-        return SHT31_MIN_TEMPERATURE + (SHT31_TEMPERATURE_RANGE * raw) / 0xFFFF
-
-    def _send_command(self, cmd: list[int]) -> None:
-        self._bus.write_i2c_block_data(self._address, cmd[0], [cmd[1]])
-
-    def _get_command_index(self) -> int:
-        """
-        Returns the index of the command that matches the current repeatability
-        and clock_stretching settings or -1 if no matching command found.
-        """
-        for index, (repeatability, clock_stretching, _) in enumerate(
-            SHT31_SINGLE_COMMANDS
-        ):
-            if (
-                self._repeatability == repeatability
-                and self._clock_stretching == clock_stretching
-            ):
-                return index
-
-        return -1
-
-    def _send_measurement_cmd(self) -> None:
-        """
-        Triggers a single-shot measurement cycle.
-
-        Sends the I2C command to transition the sensor from idle to measuring
-        mode. This must be called before every read attempt when in single shot
-        mode.
-        """
-        cmd_index = self._get_command_index()
-
-        if cmd_index != -1:
-            _, _, command = SHT31_SINGLE_COMMANDS[cmd_index]
-            self._send_command(command)
-        else:
-            raise ValueError(
-                "No matching command found for the given repeatability and clock stretching settings."
-            )
-
-        # maximum measurement duration is 15ms (see p7 of datasheet)
-        time.sleep(0.05)
-
-    def reset(self) -> None:
-        self._send_command(SHT31_CMD_BREAK)
-        time.sleep(0.001)
-        self._send_command(SHT31_CMD_SOFTRESET)
-        time.sleep(0.0015)
-
-    def get_temp_and_humidity(self) -> tuple[float | None, float | None]:
-        """
-        Read temperature and relative humidity from the sensor.
-
-        Returns:
-            A tuple (temperature_celsius, relative_humidity) where each value
-            is a float if the measurement succeeds, or None if the value
-            could not be obtained.
-        """
-        self._send_measurement_cmd()
-
-        temp_celsius, humi_relative = self._read_and_convert_data()
-
-        return temp_celsius, humi_relative
+    def get_temp_and_humidity(self) -> tuple[float, float]:
+        """Return temperature in Celsius and relative humidity in percent."""
+        temperature = self._read_attribute("temp1_input")
+        humidity = self._read_attribute("humidity1_input")
+        return temperature, humidity
