@@ -40,7 +40,7 @@ exactly one `sht3x` device.
 
 Download the latest release from the
 [Releases](https://github.com/prdktntwcklr/python-sht31/releases) page and
-install its source distribution with `pip`:
+install its source distribution with `pip`, e.g.:
 
 ```bash
 python -m pip install python-sht31-0.1.1.tar.gz
@@ -52,6 +52,9 @@ matches the version in `pyproject.toml` (for example, tag `v0.1.1` for version
 artifacts. When they match, it builds the package and attaches the wheel and
 source distribution to the release. Draft releases are not built until
 published.
+
+To prepare for a release, update the `version` in `pyproject.toml` and re-run
+`uv lock`.
 
 ## Development
 
