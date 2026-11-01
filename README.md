@@ -1,25 +1,74 @@
 # SHT31 Temperature & Humidity Sensor
 
+This Linux-focused Python package reads temperature and relative humidity from
+an SHT31 sensor through the Linux kernel's `sht3x` hwmon driver. The kernel
+driver handles sensor communication; this package reads the values exposed by
+the driver.
+
 The SHT31 is part of a family of highly accurate temperature and humidity
 sensors developed by [Sensirion AG](https://www.sensirion.com/).
 
 ## Prerequisites
 
-On the Raspberry Pi, you first need to enable the I2C bus:
+- Linux with the I2C bus enabled and the sensor connected.
+- The kernel `sht3x` driver enabled and bound to the sensor.
+- Python 3.11 or newer.
+
+On Raspberry Pi OS, enable I2C with:
 
 ```bash
 sudo raspi-config nonint do_i2c 0
 ```
 
-Alternatively, you can execute `sudo raspi-config` and enable the I2C bus from
-the configuration UI.
+Alternatively, run `sudo raspi-config` and enable I2C in the configuration UI.
+The sensor must also be instantiated on the I2C bus so the kernel driver can
+bind to it. See the Linux kernel documentation for
+[instantiating I2C devices](https://docs.kernel.org/i2c/instantiating-devices.html)
+and the [`sht3x` hwmon driver](https://docs.kernel.org/hwmon/sht3x.html).
+
+Check that the driver has exposed the sensor:
+
+```bash
+grep -H . /sys/class/hwmon/hwmon*/name
+```
+
+One of the results should be `sht3x`. The library discovers the device by this
+name; it does not depend on a particular `hwmon` number. It currently expects
+exactly one `sht3x` device.
 
 ## Installing the library
 
-You can download the most recent version of the library from the
-[Releases](https://github.com/prdktntwcklr/python-sht31/releases) section and
-install it using `pip`:
+Download the latest release from the
+[Releases](https://github.com/prdktntwcklr/python-sht31/releases) page and
+install it with `pip`:
 
 ```bash
-pip install python-sht31-0.1.1.tar.gz
+python -m pip install python-sht31-0.1.1.tar.gz
 ```
+
+## Usage
+
+```python
+from sht31.exceptions import SHT31ReadError
+from sht31.instance import SHT31
+
+try:
+    sensor = SHT31()
+    temperature, humidity = sensor.get_temp_and_humidity()
+except SHT31ReadError as error:
+    print(f"Could not read the SHT31: {error}")
+else:
+    print(f"Temperature: {temperature:.2f}°C")
+    print(f"Relative humidity: {humidity:.2f}%")
+```
+
+Temperature is returned in degrees Celsius and relative humidity in percent.
+The kernel exports both values in thousandths, which the library converts
+before returning them. Device discovery and attribute read failures raise
+`SHT31ReadError`.
+
+The package reads the kernel interface only. It does not expose low-level
+sensor commands such as reset or repeatability configuration.
+
+An example that continuously prints readings is available in
+[`examples/example.py`](./examples/example.py).
